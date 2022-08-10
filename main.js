@@ -4,6 +4,7 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import View from 'ol/View';
 import {Fill, Stroke, Style} from 'ol/style';
+import axios from 'axios'
 
 var Layersymbols = {
   rainContourSymb0l1: new Style({
@@ -137,19 +138,59 @@ const vectorLayer = new VectorLayer({
   },
 });
 
+var view = new View({
+  projection: 'EPSG:4326',
+  center: [104.036487,30.150627],
+  zoom: 6,
+  multiWorld: true
+})
+
 const map = new Map({
-  // 对vectorlayer设置颜色
-
-
-  layers: [vectorLayer],
   target: 'map',
-  view: new View({
-    projection: 'EPSG:4326',
-    center: [104.036487,30.150627],
-    zoom: 6,
-    multiWorld: true
-  }),
+  view: view
 });
+
+var getLyaerRenderSymbol = function (feature){
+  for(var i = 0; i < contourStyle.FieldScope.length; i++){
+    if(feature.values_[contourStyle.renderField] > contourStyle.FieldScope[i].min && feature.values_[contourStyle.renderField] <= contourStyle.FieldScope[i].max){
+      return contourStyle.FieldScope[i].symbol;
+    }
+  }
+}
+
+//按四川地灾那样加载个图层
+
+const scvecLayer = new VectorLayer({
+  background: '#FFFFFF',
+  source: new VectorSource({
+    wrapX: false
+  })
+});
+
+
+axios.get("http://192.168.1.231:8200/huaihe/test.json").then(data =>{
+  console.log(data.data);
+  var srcFeatures = (new GeoJSON()).readFeatures(data.data);
+
+  var vectorSource = new VectorSource({
+    features: srcFeatures,
+    wrapX: false
+  });
+
+  var srcFeatures22 = scvecLayer.getSource().getFeatures();
+
+//遍历设置样式添加回去
+  for(var i=0;i<vectorSource.getFeatures().length;i++){
+    vectorSource.getFeatures()[i].setStyle(getLyaerRenderSymbol(vectorSource.getFeatures()[i]));
+  }
+
+
+  scvecLayer.getSource().addFeatures(srcFeatures);
+
+  map.addLayer(scvecLayer);
+})
+
+
 
 const featureOverlay = new VectorLayer({
   source: new VectorSource(),
